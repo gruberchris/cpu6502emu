@@ -2,7 +2,7 @@ mod cpu;
 mod memory;
 mod types;
 
-use cpu::{Cpu, INSTRUCT_LDA_IM};
+use cpu::{Cpu, INS_LDA_IM};
 use memory::Memory;
 
 fn main() {
@@ -13,7 +13,7 @@ fn main() {
     cpu.reset(&mut memory);
 
     // example inline virtual machine code program to test with
-    memory.write(0xFFFC, INSTRUCT_LDA_IM);
+    memory.write(0xFFFC, INS_LDA_IM);
     memory.write(0xFFFD, 0x42);
 
     cpu.execute(&mut cycles, &mut memory);

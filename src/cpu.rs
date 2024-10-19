@@ -22,7 +22,7 @@ pub struct Cpu {
     n: Byte, // negative flag
 }
 
-pub const INSTRUCT_LDA_IM: Byte = 0xA9; // LDA Immediate
+pub const INS_LDA_IM: Byte = 0xA9; // LDA Immediate
 
 impl Cpu {
     pub fn new() -> Cpu {
@@ -70,7 +70,7 @@ impl Cpu {
         while *cycles > 0 {
             let instruction: Byte = self.read_byte(cycles, memory);
             match instruction {
-                INSTRUCT_LDA_IM => {
+                INS_LDA_IM => {
                     self.a = self.read_byte(cycles, memory);
                     self.z = if self.a == 0 { 1 } else { 0 };
                     self.n = if self.a & 0b10000000 > 0 { 1 } else { 0 };
