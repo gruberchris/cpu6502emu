@@ -22,7 +22,14 @@ pub struct Cpu {
     n: Byte, // negative flag
 }
 
-pub const INS_LDA_IM: Byte = 0xA9; // LDA Immediate
+pub const INS_LDA_IM: Byte = 0xA9; // LDA Immediate 2 bytes, 2 cycles
+pub const INS_LDA_ZP: Byte = 0xA5; // LDA Zero Page 2 bytes, 3 cycles
+pub const INS_LDA_ZPX: Byte = 0xB5; // LDA Zero Page X 2 bytes, 4 cycles
+pub const INS_LDA_ABS: Byte = 0xAD; // LDA Absolute 3 bytes, 4 cycles
+pub const INS_LDA_ABX: Byte = 0xBD; // LDA Absolute X 3 bytes, 4+ cycles (add 1 if page crossed)
+pub const INS_LDA_ABY: Byte = 0xB9; // LDA Absolute Y 3 bytes, 4+ cycles (add 1 if page crossed)
+pub const INS_LDA_IDX: Byte = 0xA1; // LDA Indirect X 2 bytes, 6 cycles
+pub const INS_LDA_IDY: Byte = 0xB1; // LDA Indirect Y 2 bytes, 5+ cycles (add 1 if page crossed)
 
 impl Cpu {
     pub fn new() -> Cpu {
