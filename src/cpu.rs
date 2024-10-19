@@ -2,16 +2,17 @@ use crate::memory::Memory;
 use crate::types::{Byte, Word};
 
 pub struct Cpu {
-    // program counter
+    // program counter 16-bit
     pc: Word,
-    // stack pointer
+    // stack pointer 8-bit
     sp: Word,
 
     // registers
-    a: Byte,
-    x: Byte,
-    y: Byte,
+    a: Byte, // accumulator register
+    x: Byte, // index register
+    y: Byte, // index register
 
+    // 7-bit status register P
     c: Byte, // carry flag
     z: Byte, // zero flag
     i: Byte, // interrupt disable flag
@@ -20,6 +21,8 @@ pub struct Cpu {
     v: Byte, // overflow flag
     n: Byte, // negative flag
 }
+
+pub const INSTRUCT_LDA_IM: Byte = 0xA9; // LDA Immediate
 
 impl Cpu {
     pub fn new() -> Cpu {
@@ -41,7 +44,7 @@ impl Cpu {
 
     pub fn reset(&mut self, memory: &mut Memory) {
         self.pc = 0xFFFC;
-        self.sp = 0x0100;
+        self.sp = 0x100;
         self.a = 0;
         self.x = 0;
         self.y = 0;
@@ -54,5 +57,29 @@ impl Cpu {
         self.n = 0;
 
         memory.initialize();
+    }
+
+    pub fn read_byte(&mut self, cycles: &mut u32, memory: &Memory) -> Byte {
+        let data = memory.read(self.pc);
+        self.pc += 1;
+        *cycles -= 1;
+        data
+    }
+
+    pub fn execute(&mut self, cycles: &mut u32, memory: &mut Memory) {
+        while *cycles > 0 {
+            let instruction: Byte = self.read_byte(cycles, memory);
+            match instruction {
+                INSTRUCT_LDA_IM => {
+                    self.a = self.read_byte(cycles, memory);
+                    self.z = if self.a == 0 { 1 } else { 0 };
+                    self.n = if self.a & 0b10000000 > 0 { 1 } else { 0 };
+                    println!("LDA Immediate: {:#X}", self.a);
+                }
+                _ => {
+                    println!("Instruction not handled: {:#X}", instruction);
+                }
+            }
+        }
     }
 }
