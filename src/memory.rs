@@ -1,5 +1,6 @@
 use crate::types::Byte;
 
+// The 6502 has 16-bit address bus, which means it can address 64KB of memory.
 const MAX_MEMORY: u32 = 1024 * 64;
 
 pub struct Memory {
