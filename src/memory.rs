@@ -1,4 +1,4 @@
-use crate::types::Byte;
+use crate::types::{Byte, Word};
 
 // The 6502 has 16-bit address bus, which means it can address 64KB of memory.
 const MAX_MEMORY: u32 = 1024 * 64;
@@ -20,11 +20,11 @@ impl Memory {
         }
     }
 
-    pub fn write(&mut self, address: u16, data: Byte) {
+    pub fn write(&mut self, address: Word, data: Byte) {
         self.data[address as usize] = data;
     }
 
-    pub fn read(&self, address: u16) -> Byte {
+    pub fn read(&self, address: Word) -> Byte {
         self.data[address as usize]
     }
 }
