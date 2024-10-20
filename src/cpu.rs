@@ -34,6 +34,18 @@ pub const INS_LDA_IDY: Byte = 0xB1; // LDA Indirect Y 2 bytes, 5+ cycles (add 1 
 
 pub const INS_JSR: Byte = 0x20; // JSRt Absolute 3 bytes, 6 cycles
 
+pub const INS_STA_ZP: Byte = 0x85; // STA Zero Page 2 bytes, 3 cycles
+pub const INS_STA_ZPX: Byte = 0x95; // STA Zero Page X 2 bytes, 4 cycles
+pub const INS_STA_ABS: Byte = 0x8D; // STA Absolute 3 bytes, 4 cycles
+pub const INS_STA_ABX: Byte = 0x9D; // STA Absolute X 3 bytes, 5 cycles
+pub const INS_STA_ABY: Byte = 0x99; // STA Absolute Y 3 bytes, 5 cycles
+pub const INS_STA_IDX: Byte = 0x81; // STA Indirect X 2 bytes, 6 cycles
+pub const INS_STA_IDY: Byte = 0x91; // STA Indirect Y 2 bytes, 6 cycles
+
+pub const INS_STY_ZP: Byte = 0x84; // STY Zero Page 2 bytes, 3 cycles
+pub const INS_STY_ZPX: Byte = 0x94; // STY Zero Page X 2 bytes, 4 cycles
+pub const INS_STY_ABS: Byte = 0x8C; // STY Absolute 3 bytes, 4 cycles
+
 impl Cpu {
     pub fn new() -> Cpu {
         Cpu {
@@ -71,25 +83,23 @@ impl Cpu {
 
     pub fn fetch_byte(&mut self, cycles: &mut u32, memory: &Memory) -> Byte {
         let data = memory.read(self.pc);
-        self.pc += 1; // a panic here could mean the program ran with too many cycles
-        *cycles -= 1;
+        self.pc = self.pc.wrapping_add(1); // Use wrapping_add to prevent overflow
+        *cycles = cycles.wrapping_sub(1); // Use wrapping_sub to prevent underflow
         data
     }
 
-    pub fn read_byte(&mut self, cycles: &mut u32, address: Byte, memory: &Memory) -> Byte {
-        let data = memory.read(address as u16);
-        self.pc += 1;
-        *cycles -= 1; // a panic here could mean the program ran with too few cycles
+    pub fn read_byte(&mut self, cycles: &mut u32, address: Word, memory: &Memory) -> Byte {
+        let data = memory.read(address);
+        *cycles = cycles.wrapping_sub(1);
         data
     }
 
     pub fn fetch_word(&mut self, cycles: &mut u32, memory: &Memory) -> Word {
         // 6502 is little endian
         // read the low byte first, then shift the high byte by 8 bits and OR it with the low byte
-        let data =
-            memory.read(self.pc as u16) as Word | ((memory.read(self.pc as u16 + 1) as Word) << 8);
-        self.pc += 2;
-        *cycles -= 2;
+        let data = memory.read(self.pc) as Word | ((memory.read(self.pc + 1) as Word) << 8);
+        self.pc = self.pc.wrapping_add(2);
+        *cycles = cycles.wrapping_sub(2);
         data
     }
 
@@ -97,16 +107,21 @@ impl Cpu {
         // 6502 is little endian
         // read the low byte first, then shift the high byte by 8 bits and OR it with the low byte
         let data = memory.read(address) as Word | ((memory.read(address + 1) as Word) << 8);
-        self.pc += 2;
-        *cycles -= 2;
+        self.pc = self.pc.wrapping_add(2);
+        *cycles = cycles.wrapping_sub(2);
         data
     }
 
-    pub fn write_word(&mut self, cycles: &mut u32, address: Word, data: Word, memory: &mut Memory) {
-        memory.write(address, data as Byte);
-        memory.write(address + 1, (data >> 8) as Byte);
-        self.pc += 2;
-        *cycles -= 2;
+    pub fn write_word(
+        &mut self,
+        cycles: &mut u32,
+        address: Word,
+        value: Word,
+        memory: &mut Memory,
+    ) {
+        memory.write(address, (value & 0xFF) as Byte);
+        memory.write(address.wrapping_add(1), (value >> 8) as Byte);
+        *cycles = cycles.wrapping_sub(2); // Use wrapping_sub to prevent underflow
     }
 
     pub fn execute(&mut self, cycles: &mut u32, memory: &mut Memory) {
@@ -125,7 +140,7 @@ impl Cpu {
                     // one clock cycle to fetch the zero page address
                     let zero_page_address = self.fetch_byte(cycles, memory);
                     // one clock cycle to read the byte from the zero page address
-                    self.a = self.read_byte(cycles, zero_page_address, memory);
+                    self.a = self.read_byte(cycles, zero_page_address as Word, memory);
                     self.z = if self.a == 0 { 1 } else { 0 };
                     self.n = if self.a & 0b10000000 > 0 { 1 } else { 0 };
                     println!("LDA Zero Page: {:#X}", self.a);
@@ -137,15 +152,16 @@ impl Cpu {
                     zero_page_address = zero_page_address.wrapping_add(self.x);
                     *cycles -= 1;
                     // one clock cycle to set the a register to the value at the zero page address
-                    self.a = self.read_byte(cycles, zero_page_address, memory);
+                    self.a = self.read_byte(cycles, zero_page_address as Word, memory);
                     self.z = if self.a == 0 { 1 } else { 0 };
                     self.n = if self.a & 0b10000000 > 0 { 1 } else { 0 };
                     println!("LDA Zero Page X: {:#X}", self.a);
                 }
                 INS_LDA_ABS => {
-                    let low_byte = self.fetch_byte(cycles, memory);
-                    let high_byte = self.fetch_byte(cycles, memory);
-                    let address = (high_byte << 4) | low_byte;
+                    //let low_byte = self.fetch_byte(cycles, memory);
+                    //let high_byte = self.fetch_byte(cycles, memory);
+                    //let address = (high_byte << 4) | low_byte;
+                    let address = self.fetch_word(cycles, memory) as Word;
                     self.a = self.read_byte(cycles, address, memory);
                     self.z = if self.a == 0 { 1 } else { 0 };
                     self.n = if self.a & 0b10000000 > 0 { 1 } else { 0 };
@@ -160,7 +176,7 @@ impl Cpu {
                         *cycles -= 1; // Add an extra cycle if page boundary is crossed
                     }
 
-                    self.a = self.read_byte(cycles, address as Byte, memory);
+                    self.a = self.read_byte(cycles, address, memory);
                     self.z = if self.a == 0 { 1 } else { 0 };
                     self.n = if self.a & 0b10000000 > 0 { 1 } else { 0 };
                     println!("LDA Absolute X: {:#X}", self.a);
@@ -174,7 +190,7 @@ impl Cpu {
                         *cycles -= 1; // Add an extra cycle if page boundary is crossed
                     }
 
-                    self.a = self.read_byte(cycles, address as Byte, memory);
+                    self.a = self.read_byte(cycles, address, memory);
                     self.z = if self.a == 0 { 1 } else { 0 };
                     self.n = if self.a & 0b10000000 > 0 { 1 } else { 0 };
                     println!("LDA Absolute Y: {:#X}", self.a);
@@ -192,7 +208,7 @@ impl Cpu {
                     *cycles -= 1; // 1 cycle for reading the second byte of the address
 
                     // Read the byte from the effective address
-                    self.a = self.read_byte(cycles, address as Byte, memory);
+                    self.a = self.read_byte(cycles, address, memory);
 
                     // Update the zero and negative flags
                     self.z = if self.a == 0 { 1 } else { 0 };
@@ -215,7 +231,7 @@ impl Cpu {
                     }
 
                     // Read the byte from the effective address
-                    self.a = self.read_byte(cycles, address as Byte, memory);
+                    self.a = self.read_byte(cycles, address, memory);
 
                     // Update the zero and negative flags
                     self.z = if self.a == 0 { 1 } else { 0 };
@@ -223,25 +239,23 @@ impl Cpu {
                     println!("LDA Indirect Y: {:#X}", self.a);
                 }
                 INS_JSR => {
-                    // Fetch the low byte of the address
-                    let low_byte = self.fetch_byte(cycles, memory);
-                    // Fetch the high byte of the address
-                    let high_byte = self.fetch_byte(cycles, memory);
-                    // Combine the bytes to form the address
-                    let address = (high_byte as Word) << 8 | (low_byte as Word);
+                    // Fetch the address to jump to
+                    let address = self.fetch_word(cycles, memory);
 
                     // Calculate the return address (current PC - 1)
                     let return_address = self.pc.wrapping_sub(1);
 
                     // Push the return address onto the stack
-                    self.sp = self.sp.wrapping_sub(1);
+                    self.sp = self.sp.wrapping_sub(2);
+
+                    // Write the high byte of the return address to the stack pointer
                     self.write_word(cycles, 0x0100 + self.sp as Word, return_address, memory);
 
                     // Set the program counter to the new address
                     self.pc = address;
 
                     // Adjust cycles to ensure the instruction requires 6 cycles
-                    *cycles -= 2;
+                    *cycles -= 1;
 
                     println!("JSR: {:#X}", address);
                 }

@@ -2,7 +2,7 @@ mod cpu;
 mod memory;
 mod types;
 
-use cpu::{Cpu, INS_LDA_IM, INS_LDA_ZP};
+use cpu::{Cpu, INS_JSR, INS_LDA_IM, INS_LDA_ZP};
 use memory::Memory;
 
 fn main() {
@@ -26,5 +26,15 @@ fn main() {
     memory.write(0xFFFC, INS_LDA_ZP);
     memory.write(0xFFFD, 0x42);
     memory.write(0x0042, 0x84);
+    cpu.execute(&mut cycles, &mut memory);
+
+    cpu.reset(&mut memory);
+    cycles = 8;
+
+    memory.write(0xFFFC, INS_JSR);
+    memory.write(0xFFFD, 0x42);
+    memory.write(0xFFFE, 0x42);
+    memory.write(0x4242, INS_LDA_IM);
+    memory.write(0x4243, 0x84);
     cpu.execute(&mut cycles, &mut memory);
 }
